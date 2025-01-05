@@ -1,5 +1,30 @@
 # Steps to Build Flink Environment
 
+### There are 2 ways of setup this project, via docker compose or via step by step with docker images
+
+# 1st Docker compose:
+    $ docker-compose up --build -d
+
+## verification Steps
+    Check Python Installation:
+
+    $ docker exec -it jobmanager python --version
+    $ docker exec -it jobmanager pip --version
+
+# Produce stream data via kafka topic
+
+    $ docker cp ADMISSIONS.csv kafka:/admission.csv
+    $ docker cp producer.py kafka:/producer.py
+    $ docker exec -it kafka python3 /producer.py
+## verify data in kafka topic
+    $ docker exec -it kafka kafka-console-consumer.sh --topic patient-admissions --from-beginning --bootstrap-server localhost:9092
+
+## Test Flink Job Submission:
+
+    $ docker cp flink_job.py jobmanager:/opt/flink-job.py
+    $ docker exec -it jobmanager flink run -py /opt/flink-job.py
+
+# 2nd way: step by step
 ## 1. Pull Flink Docker Image
 Download the official Apache Flink image from Docker Hub:
 
