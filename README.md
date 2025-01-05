@@ -32,7 +32,7 @@ Start Kafka and Zookeeper Containers:
 
     $ docker run -d --name zookeeper --network flink-network -e ALLOW_ANONYMOUS_LOGIN=yes -p 2181:2181 bitnami/zookeeper:latest
     $ docker run -d --name kafka --network flink-network -e KAFKA_CFG_ZOOKEEPER_CONNECT=zookeeper:2181 -e KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE=true -p 9092:9092 bitnami/kafka:latest
-C
+
 ## 5.Create Kafka Topic:
 
 
@@ -94,6 +94,41 @@ Submit the job:
     - Check the Kafka broker container status.
     - Check the Kafka broker logs for any errors.
 
+
+
+
+# Kafka producer:
+
+    ## setup python inside Kafka:
+        $ docker exec -it --user root kafka bash
+        $ apt update
+        $ apt install python3
+        $ ln -s /usr/bin/python3 /usr/bin/python
+        $ apt install python3-pip
+        $ pip3 install kafka-python or pip install kafka-python --break-system-packages
+
+
+    ## check kafka topics:
+    
+        $ docker exec -it kafka kafka-topics.sh --list --bootstrap-server localhost:9092
+
+
+    ## run the producer:
+      $ docker cp ADMISSIONS.csv kafka:/admission.csv
+      $ docker cp producer.py kafka:/producer.py
+      $ docker exec -it kafka python3 /producer.py
+        # verify data in kafka topic
+        $ docker exec -it kafka kafka-console-consumer.sh --topic patient-admissions --from-beginning --bootstrap-server localhost:9092
+
+
+    # to check the output:
+
+    1. check the dashboard for the running processes
+    2. check the output in the kafka consumer:
+        $ docker exec -it kafka kafka-console-consumer.sh --topic admission-trends --bootstrap-server localhost:9092 --from-beginning
+        $ docker exec -it kafka kafka-console-consumer.sh --topic patient-admissions --bootstrap-server localhost:9092 --from-beginning
+
+
 # Monitoring and Results
 Flink Dashboard:
 
@@ -118,25 +153,34 @@ Spark: http://localhost:8080
 The results are pushed to a Kafka topic (admission-trends) for real-time visualization using dashboards like Grafana or Tableau.
 
 
-# Kafka producer:
-
-    ## setup python inside Kafka:
-        $ docker exec -it --user root kafka bash
-        $ apt update
-        $ apt install python3
-        $ ln -s /usr/bin/python3 /usr/bin/python
-        $ apt install python3-pip
-        $ pip3 install kafka-python or pip install kafka-python --break-system-packages
-
-
-    ## check kafka topics:
     
-        $ docker exec -it kafka kafka-topics.sh --list --bootstrap-server localhost:9092
-
-
 # Additional info during flink journey:
+
+# get the running jobs:
+    docker exec -it jobmanager flink list
+
+# to stop the job:
+    docker exec -it jobmanager flink cancel <job_id>
+    or from the flink dashboard
 
 ## to run flink SQL client:
 
     $ docker exec -it jobmanager ./bin/sql-client.sh
 
+## to set more slots:
+./bin/taskmanager.sh start 
+
+# to check kafka topics
+    $ docker exec -it --user root kafka bash
+    $ docker exec -it kafka kafka-topics.sh --list --bootstrap-server localhost:9092
+    or 
+    $ kafka-topics.sh --bootstrap-server localhost:9092 --list
+
+
+# Grafana and prometheus
+
+http://localhost:9090/query
+
+# Next enhanceents:
+    - make alerts and threshold with grafana, by setting up SMTP server protocool
+ - add database to store the data

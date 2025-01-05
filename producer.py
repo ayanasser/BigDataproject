@@ -3,25 +3,38 @@ import csv
 import json
 import time
 
-# Kafka Producer Configuration
+# Kafka Configuration
 producer = KafkaProducer(
     bootstrap_servers='localhost:9092',
     value_serializer=lambda v: json.dumps(v).encode('utf-8')
 )
 
-# Read CSV file and send rows to Kafka
-with open('admission.csv', 'r') as file:
+# Path to the CSV file inside the Kafka container
+file_path = '/admission.csv'  # Update this path if the file location changes
+
+# Read and Publish Data
+with open(file_path, 'r') as file:
     reader = csv.DictReader(file)
     for row in reader:
-        # Transform data to match Flink schema
+        # Prepare the record to match Flink schema
         record = {
-            "id": int(row["id"]),
-            "admission_time": row["admission_time"],
-            "readmission": int(row["readmission"])
+            "HADM_ID": int(row["HADM_ID"]),
+            "ADMITTIME": row["ADMITTIME"],  # String format as is
+            "HOSPITAL_EXPIRE_FLAG": int(row["HOSPITAL_EXPIRE_FLAG"]), 
+            "ADMISSION_TYPE": str(row["ADMISSION_TYPE"]).strip().upper(),
+            "ADMISSION_LOCATION": str(row["ADMISSION_LOCATION"]).strip().upper(),
+            "DIAGNOSIS": str(row["DIAGNOSIS"]).strip().upper(),
+            "ETHNICITY": str(row["ETHNICITY"]).strip().upper(),
+            "RELIGION": str(row["RELIGION"]).strip().upper(),
+            "MARITAL_STATUS": str(row["MARITAL_STATUS"]).strip().upper()
         }
+
+        # Send record to Kafka topic
         producer.send('patient-admissions', value=record)
         print(f"Sent: {record}")
-        time.sleep(1)  # Simulate streaming by adding delay
+
+        # Simulate real-time streaming delay
+        time.sleep(1)
 
 producer.flush()
 producer.close()
