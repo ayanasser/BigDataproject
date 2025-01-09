@@ -5,6 +5,9 @@
 # 1st Docker compose:
     $ docker-compose up --build -d
 
+## to scale taskmanager slots
+    $ docker-compose up --scale taskmanager=4 -d 
+
 ## verification Steps
     Check Python Installation:
 

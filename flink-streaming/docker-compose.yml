@@ -9,7 +9,7 @@ services:
     ports:
       - "2181:2181"
     networks:
-      - flink-network
+      - flink-network2
 
   kafka:
     build: ./kafka  # Use the custom Dockerfile for Kafka
@@ -35,7 +35,6 @@ services:
 
   taskmanager:
     build: ./flink  # Use the same Flink image for TaskManager
-    container_name: taskmanager
     command: taskmanager
     environment:
       - JOB_MANAGER_RPC_ADDRESS=jobmanager
@@ -51,6 +50,28 @@ services:
       - "3000:3000"
     networks:
       - flink-network
+
+
+
+
+  postgres:
+    image: postgres:14
+    container_name: postgres
+    environment:
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=default_db
+      - POSTGRES_MULTIPLE_DATABASES=admission_db,location_db,diagnosis_db,anomalies_db
+    ports:
+      - "5432:5432"
+    networks:
+      - flink-network
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d
+
+volumes:
+  postgres-data:
 
 networks:
   flink-network:
