@@ -9,7 +9,7 @@ services:
     ports:
       - "2181:2181"
     networks:
-      - flink-network2
+      - flink-network
 
   kafka:
     build: ./kafka  # Use the custom Dockerfile for Kafka
@@ -82,7 +82,7 @@ services:
       - flink-network
 
 
-      
+
 volumes:
   postgres-data:
 
