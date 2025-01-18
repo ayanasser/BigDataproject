@@ -33,9 +33,9 @@ def produce_vitals_from_csv(file_path, chunk_size):
     """
     for chunk_number, chunk in enumerate(pd.read_csv(file_path, chunksize=chunk_size), start=1):
         # Filter rows with relevant ITEMIDs
-        filtered_chunk = chunk[chunk['ITEMID'].isin(ITEMID_MAPPING.keys())]
+        # filtered_chunk = chunk[chunk['ITEMID'].isin(ITEMID_MAPPING.keys())]
         
-        for _, row in filtered_chunk.iterrows():
+        for _, row in chunk.iterrows():
             # Create a dictionary for the vital sign record
             record = {
                 "subject_id": int(row["SUBJECT_ID"]),
@@ -51,7 +51,7 @@ def produce_vitals_from_csv(file_path, chunk_size):
             print(f"Chunk {chunk_number}: {record}")
 
             # Simulate real-time streaming
-            time.sleep(0.1)
+            time.sleep(1)
 
 if __name__ == "__main__":
     print("Starting Kafka producer for ICU vitals...")

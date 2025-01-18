@@ -1,7 +1,8 @@
+version: '3.8'
 
 services:
   zookeeper:
-    image: bitnami/zookeeper:latest
+    image: docker.io/bitnami/zookeeper:3.7
     container_name: zookeeper
     environment:
       - ALLOW_ANONYMOUS_LOGIN=yes
@@ -11,7 +12,7 @@ services:
       - spark-network
 
   kafka:
-    build: ./kafka  # Use the custom Dockerfile for Kafka
+    build: ./kafka
     container_name: kafka
     environment:
       - KAFKA_CFG_ZOOKEEPER_CONNECT=zookeeper:2181
@@ -20,30 +21,49 @@ services:
       - "9092:9092"
     networks:
       - spark-network
+    depends_on:
+      - zookeeper
     volumes:
-      - ./:/app  # Mount the current directory to /app inside the container
+      - .:/app
 
   spark-master:
-    image: bitnami/spark:latest
+    image: docker.io/bitnami/spark:3
     container_name: spark-master
     environment:
       - SPARK_MODE=master
+      - SPARK_RPC_AUTHENTICATION_ENABLED=no
+      - SPARK_RPC_ENCRYPTION_ENABLED=no
+      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
+      - SPARK_SSL_ENABLED=no
+      - HADOOP_USER_NAME=root
+      - KAFKA_BROKERS=kafka:9092
     ports:
-      - "8080:8080"  # Spark Web UI
-      - "7077:7077"  # Spark Master Port
+      - "8080:8080"
+      - "7077:7077"
+    volumes:
+      - .:/app
+      - ./jars_dir:/opt/bitnami/spark/ivy:z
     depends_on:
       - kafka
     networks:
       - spark-network
 
   spark-worker:
-    image: bitnami/spark:latest
+    image: docker.io/bitnami/spark:3
     container_name: spark-worker
     environment:
       - SPARK_MODE=worker
-      - SPARK_MASTER_URL=spark://spark-master:7077
+      - SPARK_MASTER_URL=spark://spark:7077
+      - SPARK_WORKER_MEMORY=1G
+      - SPARK_WORKER_CORES=1
+      - SPARK_RPC_AUTHENTICATION_ENABLED=no
+      - SPARK_RPC_ENCRYPTION_ENABLED=no
+      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
+      - SPARK_SSL_ENABLED=no
     depends_on:
       - spark-master
+    volumes:
+      - .:/app
     networks:
       - spark-network
 
@@ -58,6 +78,3 @@ services:
 networks:
   spark-network:
     driver: bridge
-
-
-
