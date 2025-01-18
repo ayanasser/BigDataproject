@@ -5,24 +5,36 @@
 # 1st Docker compose:
     $ docker-compose up --build -d
 
+## to scale taskmanager slots
+    $ docker-compose up --scale taskmanager=4 -d
+
 ## verification Steps
     Check Python Installation:
 
     $ docker exec -it jobmanager python --version
     $ docker exec -it jobmanager pip --version
 
-# Produce stream data via kafka topic
+# RUN
 
-    $ docker cp ADMISSIONS.csv kafka:/admission.csv
-    $ docker cp producer.py kafka:/producer.py
+# Produce stream data via kafka topic
     $ docker exec -it kafka python3 /producer.py
-## verify data in kafka topic
+## verify data in kafka topic (optional)
     $ docker exec -it kafka kafka-console-consumer.sh --topic patient-admissions --from-beginning --bootstrap-server localhost:9092
 
 ## Test Flink Job Submission:
 
-    $ docker cp flink_job.py jobmanager:/opt/flink-job.py
-    $ docker exec -it jobmanager flink run -py /opt/flink-job.py
+    $ docker exec -it jobmanager flink run -py /opt/flink_job.py
+
+
+## use kafka connector to insert data from kafka topic to postgres (try with one topic for now)
+    $ curl -X POST -H "Content-Type: application/json"   --data @admission-trends-sink.json   http://localhost:8083/connectors
+
+## optional (for other topics)
+Repeat for any other topic you have,
+- create a json like admission-trends-sink,json and change the topic name,...so on
+- repeat the POST call with the new json name
+
+# 1st method finish
 
 # 2nd way: step by step
 ## 1. Pull Flink Docker Image

@@ -35,12 +35,33 @@ services:
 
   taskmanager:
     build: ./flink  # Use the same Flink image for TaskManager
-    container_name: taskmanager
     command: taskmanager
     environment:
       - JOB_MANAGER_RPC_ADDRESS=jobmanager
     depends_on:
       - jobmanager
+    networks:
+      - flink-network
+
+
+  kafka-connect:
+    image: confluentinc/cp-kafka-connect:latest
+    container_name: kafka-connect
+    ports:
+      - "8083:8083"  # Kafka Connect REST API
+    environment:
+      CONNECT_BOOTSTRAP_SERVERS: kafka:9092
+      CONNECT_GROUP_ID: kafka-connect-group
+      CONNECT_CONFIG_STORAGE_TOPIC: connect-configs
+      CONNECT_OFFSET_STORAGE_TOPIC: connect-offsets
+      CONNECT_STATUS_STORAGE_TOPIC: connect-status
+      CONNECT_KEY_CONVERTER: org.apache.kafka.connect.storage.StringConverter
+      CONNECT_VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      CONNECT_PLUGIN_PATH: /usr/share/java,/usr/share/confluent-hub-components
+      CONNECT_REST_ADVERTISED_HOST_NAME: kafka-connect  # Add this line
+    depends_on:
+      - kafka
+      - postgres
     networks:
       - flink-network
 
@@ -51,6 +72,41 @@ services:
       - "3000:3000"
     networks:
       - flink-network
+
+
+  postgres:
+    image: postgres
+    container_name: postgres
+    environment:
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=default_db
+      # - POSTGRES_MULTIPLE_DATABASES=admission_db,location_db,diagnosis_db,anomalies_db
+    ports:
+      - "5432:5432"
+    networks:
+      - flink-network
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d
+
+
+
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml  # Prometheus configuration
+    ports:
+      - "9090:9090"
+    networks:
+      - flink-network
+
+
+
+volumes:
+  postgres-data:
 
 networks:
   flink-network:
