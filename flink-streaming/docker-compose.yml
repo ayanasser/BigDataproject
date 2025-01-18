@@ -43,6 +43,28 @@ services:
     networks:
       - flink-network
 
+
+  kafka-connect:
+    image: confluentinc/cp-kafka-connect:latest
+    container_name: kafka-connect
+    ports:
+      - "8083:8083"  # Kafka Connect REST API
+    environment:
+      CONNECT_BOOTSTRAP_SERVERS: kafka:9092
+      CONNECT_GROUP_ID: kafka-connect-group
+      CONNECT_CONFIG_STORAGE_TOPIC: connect-configs
+      CONNECT_OFFSET_STORAGE_TOPIC: connect-offsets
+      CONNECT_STATUS_STORAGE_TOPIC: connect-status
+      CONNECT_KEY_CONVERTER: org.apache.kafka.connect.storage.StringConverter
+      CONNECT_VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      CONNECT_PLUGIN_PATH: /usr/share/java,/usr/share/confluent-hub-components
+      CONNECT_REST_ADVERTISED_HOST_NAME: kafka-connect  # Add this line
+    depends_on:
+      - kafka
+      - postgres
+    networks:
+      - flink-network
+
   grafana:
     image: grafana/grafana:latest
     container_name: grafana
@@ -53,13 +75,13 @@ services:
 
 
   postgres:
-    image: postgres:14
+    image: postgres
     container_name: postgres
     environment:
       - POSTGRES_USER=admin
       - POSTGRES_PASSWORD=password
       - POSTGRES_DB=default_db
-      - POSTGRES_MULTIPLE_DATABASES=admission_db,location_db,diagnosis_db,anomalies_db
+      # - POSTGRES_MULTIPLE_DATABASES=admission_db,location_db,diagnosis_db,anomalies_db
     ports:
       - "5432:5432"
     networks:

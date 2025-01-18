@@ -12,5 +12,6 @@ RUN apt update && apt install -y python3 python3-pip wget && \
 # Download and add Flink Kafka Connector JAR
 RUN wget -P /opt/flink/lib/ https://repo1.maven.org/maven2/org/apache/flink/flink-connector-kafka/1.15.0/flink-connector-kafka-1.15.0.jar
 RUN wget  -P /opt/flink/lib/ https://repo1.maven.org/maven2/org/apache/kafka/kafka-clients/3.2.0/kafka-clients-3.2.0.jar
+COPY flink_job.py /opt/flink_job.py
 # Switch back to flink user
 USER flink
