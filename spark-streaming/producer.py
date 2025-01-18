@@ -11,13 +11,6 @@ KAFKA_BROKER = "localhost:9092"  # Adjust to your Kafka setup
 # File path to the dataset
 DATA_FILE = "/app/CHARTEVENTS.csv"
 
-# Map ITEMID to Vital Sign Names
-ITEMID_MAPPING = {
-    211: "Heart Rate",       # Example ITEMID for heart rate
-    618: "SpO2",             # Example ITEMID for oxygen saturation
-    223762: "Temperature",   # Example ITEMID for temperature
-}
-
 # Initialize Kafka producer
 producer = KafkaProducer(
     bootstrap_servers=KAFKA_BROKER,
@@ -33,7 +26,6 @@ def produce_vitals_from_csv(file_path, chunk_size):
     """
     for chunk_number, chunk in enumerate(pd.read_csv(file_path, chunksize=chunk_size), start=1):
         # Filter rows with relevant ITEMIDs
-        # filtered_chunk = chunk[chunk['ITEMID'].isin(ITEMID_MAPPING.keys())]
         
         for _, row in chunk.iterrows():
             # Create a dictionary for the vital sign record

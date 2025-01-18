@@ -66,7 +66,10 @@ docker exec -it kafka python3 /app/producer.py
 #### verify data in kafka topic
     $ docker exec -it kafka kafka-console-consumer.sh --topic patient-vitals --from-beginning --bootstrap-server localhost:9092
 
-### **5. Run Spark Job**
+### **5. Create kafka topic for write the data**
+    $ exec -it kafka kafka-topics.sh --create --topic abnormal-vital-sign --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1
+
+### **6. Run Spark Job**
 Submit the Spark job from the Spark master container:
 ```bash
 docker exec -it spark-master spark-submit 
@@ -74,7 +77,8 @@ docker exec -it spark-master spark-submit
 --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.3.2 
 --jars /opt/bitnami/spark/ivy/* /app/spark_job.py;
 ```
-
+#### verify data is written in kafka topic
+    $ docker exec -it kafka kafka-console-consumer.sh --topic abnormal-vital-sign --from-beginning --bootstrap-server localhost:9092
 ---
 
 ## Accessing Services
