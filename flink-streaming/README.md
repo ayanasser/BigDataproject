@@ -25,16 +25,17 @@
 
     $ docker exec -it jobmanager flink run -py /opt/flink_job.py
 
+# Visualization
 
-## use kafka connector to insert data from kafka topic to postgres (try with one topic for now)
-    $ curl -X POST -H "Content-Type: application/json"   --data @admission-trends-sink.json   http://localhost:8083/connectors
+## Consume data from output topics
+        $ docker cp kafka/kafka_consume.py kafka:/kafka_consume.py
+        $ docker exec -it kafka python3 /kafka_consume.py
 
-## optional (for other topics)
-Repeat for any other topic you have,
-- create a json like admission-trends-sink,json and change the topic name,...so on
-- repeat the POST call with the new json name
+### The data will be sent to prometheus as timeseries metrics
+### 1. Add prometheus as data source
+### 2. Create dashboard then panels 
 
-# 1st method finish
+## 1st method finish
 
 # 2nd way: step by step
 ## 1. Pull Flink Docker Image

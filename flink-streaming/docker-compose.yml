@@ -44,27 +44,6 @@ services:
       - flink-network
 
 
-  kafka-connect:
-    image: confluentinc/cp-kafka-connect:latest
-    container_name: kafka-connect
-    ports:
-      - "8083:8083"  # Kafka Connect REST API
-    environment:
-      CONNECT_BOOTSTRAP_SERVERS: kafka:9092
-      CONNECT_GROUP_ID: kafka-connect-group
-      CONNECT_CONFIG_STORAGE_TOPIC: connect-configs
-      CONNECT_OFFSET_STORAGE_TOPIC: connect-offsets
-      CONNECT_STATUS_STORAGE_TOPIC: connect-status
-      CONNECT_KEY_CONVERTER: org.apache.kafka.connect.storage.StringConverter
-      CONNECT_VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
-      CONNECT_PLUGIN_PATH: /usr/share/java,/usr/share/confluent-hub-components
-      CONNECT_REST_ADVERTISED_HOST_NAME: kafka-connect  # Add this line
-    depends_on:
-      - kafka
-      - postgres
-    networks:
-      - flink-network
-
   grafana:
     image: grafana/grafana:latest
     container_name: grafana
@@ -104,6 +83,13 @@ services:
       - flink-network
 
 
+  pushgateway:
+    image: prom/pushgateway:latest
+    container_name: pushgateway
+    ports:
+      - "9091:9091"
+    networks:
+      - flink-network
 
 volumes:
   postgres-data:
