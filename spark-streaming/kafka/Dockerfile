@@ -8,7 +8,7 @@ USER root
 RUN apt update && apt install -y python3 python3-pip && \
     ln -s /usr/bin/python3 /usr/bin/python && \
     pip3 install kafka-python --break-system-packages && \
-    pip3 install pandas --break-system-packages 
+    pip3 install pandas --break-system-packages
 
 
 
