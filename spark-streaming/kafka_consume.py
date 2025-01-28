@@ -20,8 +20,8 @@ vitals_metric = Gauge(
 
 abnormal_vital_metric = Gauge(
     'abnormal_vital_sign', 
-    'Abnormal vital sign alerts by icustay_id and category', 
-    ['icustay_id', 'vital_sign', 'category', 'alert', 'charttime']
+    'Abnormal vital sign alerts summary by window and subject_id', 
+    ['window_start', 'window_end', 'subject_id', 'vital_sign', 'alerts_summary']
 )
 
 # Start Prometheus HTTP server
@@ -68,24 +68,23 @@ def consume_abnormal_vital_sign():
 
     for message in consumer:
         data = message.value
-        icustay_id = data['icustay_id']
+        window_start = data['window_start']
+        window_end = data['window_end']
+        subject_id = data['subject_id']
         vital_sign = data['vital_sign']
-        category = data['category']
-        alert = data['alert']
-        value = float(data['value'])  # Ensure numeric value
-        charttime = data['charttime']
+        alerts_summary = data['alerts_summary']
 
         # Print the message for debugging
         print(f"Abnormal Vital Sign Message: {data}")
 
         # Update Prometheus metric
         abnormal_vital_metric.labels(
-            icustay_id=icustay_id, 
-            vital_sign=vital_sign, 
-            category=category, 
-            alert=alert, 
-            charttime=charttime
-        ).set(value)
+            window_start=window_start,
+            window_end=window_end,
+            subject_id=subject_id,
+            vital_sign=vital_sign,
+            alerts_summary=alerts_summary
+        ).set(1)  # Use 1 as the value since this is a summary metric
 
 # Run both consumers concurrently
 if __name__ == "__main__":

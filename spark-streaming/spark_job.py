@@ -1,9 +1,18 @@
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import from_json, col, struct, to_json, when, broadcast, concat_ws, lit
+from pyspark.sql.functions import from_json, col, struct, to_json, when, broadcast, concat_ws, lit, window
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType, FloatType, TimestampType
+from pyspark.sql.functions import collect_list, array_join
+
+
+# Constants for ITEMIDs (replace these with your actual ITEMIDs)
+HR_ITEMID = 220045
+SPO2_ITEMID = 220277
+TEMP_ITEMID = 223762
 
 def load_d_items(spark):
-    # Load D_ITEMS.csv
+    """
+    Load D_ITEMS.csv into a Spark DataFrame.
+    """
     d_items_schema = StructType([
         StructField("ROW_ID", IntegerType(), True),
         StructField("ITEMID", IntegerType(), True),
@@ -32,7 +41,7 @@ schema = StructType([
     StructField("unit", StringType(), True),
 ])
 
-print("start spark job.......................................................")
+print("Starting Spark job...")
 
 # Initialize Spark session
 spark = SparkSession.builder \
@@ -51,12 +60,12 @@ spark = SparkSession.builder \
 # Set log level to reduce noise
 spark.sparkContext.setLogLevel("WARN")
 
-print("Spark session created.....................................................")
+print("Spark session created...")
 
 try:
-    # Load D_ITEMS as a broadcast variable
+    # Load D_ITEMS and broadcast
     d_items_df = broadcast(load_d_items(spark))
-    print("D_ITEMS loaded and broadcasted.................................................")
+    print("D_ITEMS loaded and broadcasted...")
 
     # Read data from Kafka
     df = spark.readStream \
@@ -67,70 +76,74 @@ try:
         .option("failOnDataLoss", "false") \
         .load()
     
-    print("Kafka stream initialized.....................................................")
-    
+    print("Kafka stream initialized...")
+
     # Deserialize Kafka value field (JSON)
     parsed_df = df.selectExpr("CAST(value AS STRING) as json") \
         .select(from_json(col("json"), schema).alias("data")) \
         .select("data.*")
     
-
     # Filter for selected ITEMIDs (HR, SpO2, Temperature)
     filtered_df = parsed_df.filter(
-        col("vital_sign").isin(220045, 220277, 223762)  # Replace with actual ITEMIDs
+        col("vital_sign").isin(HR_ITEMID, SPO2_ITEMID, TEMP_ITEMID)
     )
 
-
-    # Join with D_ITEMS
+    # Join with D_ITEMS for enrichment
     enriched_df = filtered_df.join(
         d_items_df,
-        parsed_df.vital_sign == d_items_df.ITEMID,
+        filtered_df.vital_sign == d_items_df.ITEMID,
         "left"
     )
     
-    print("Stream processing started.....................................................")
-    
-    # Identify abnormal vitals with enriched data using ABBREVIATION
+    print("Stream processing started...")
+
+    # Identify abnormal vitals
     abnormal_vitals = enriched_df.withColumn(
         "alert",
-        when((col("ABBREVIATION") == "HR") & ((col("value") < 60) | (col("value") > 100)), # HR 220045
-             concat_ws(" - ", col("LABEL"), lit("Abnormal")))    
-        .when((col("ABBREVIATION") == "SpO2") & (col("value") < 90), 
+        when((col("ABBREVIATION") == "HR") & ((col("value") < 60) | (col("value") > 100)),
+             concat_ws(" - ", col("LABEL"), lit("Abnormal")))
+        .when((col("ABBREVIATION") == "SpO2") & (col("value") < 90),
               concat_ws(" - ", col("LABEL"), lit("Low")))
-        .when((col("ABBREVIATION") == "Temperature C") & ((col("value") < 36) | (col("value") > 38)), 
+        .when((col("ABBREVIATION") == "Temperature C") & ((col("value") < 36) | (col("value") > 38)),
               concat_ws(" - ", col("LABEL"), lit("Abnormal")))
         .otherwise(None)
     ).filter("alert IS NOT NULL")
 
-    # Convert all fields to string format and create a JSON string
-    kafka_output = abnormal_vitals.select(
+    # Apply a time window for aggregation 
+    windowed_vitals = abnormal_vitals.groupBy(
+        window(col("charttime"), "5 minutes"),  # 5-minute window
+        col("subject_id"),
+        col("vital_sign")
+    ).agg(
+        collect_list(col("alert")).alias("alerts_list")  # Aggregate alerts into a list
+    ).withColumn(
+        "alerts_summary", array_join(col("alerts_list"), ", ")  # Join alerts into a single string
+    )
+
+    # Convert aggregated data to JSON format for Kafka
+    kafka_output = windowed_vitals.select(
         to_json(struct(
+            col("window.start").alias("window_start"),
+            col("window.end").alias("window_end"),
             col("subject_id").cast("string").alias("subject_id"),
-            col("icustay_id").cast("string").alias("icustay_id"),
-            col("charttime").cast("string").alias("charttime"),
             col("vital_sign").cast("string").alias("vital_sign"),
-            col("ABBREVIATION").alias("vital_sign_abbrev"),
-            col("LABEL").alias("vital_sign_label"),
-            col("CATEGORY").alias("category"),
-            col("value").cast("string").alias("value"),
-            col("UNITNAME").alias("unit"),
-            col("alert").alias("alert")
+            col("alerts_summary").alias("alerts_summary")
         )).alias("value")
     )
 
-    print("abnormal vitals identified.....................................................")
+    print("Abnormal vitals aggregated by time window...")
 
     # Write abnormal vitals to Kafka
     query = kafka_output.writeStream \
-        .outputMode("append") \
+        .outputMode("update") \
         .format("kafka") \
         .trigger(processingTime='5 seconds') \
         .option("kafka.bootstrap.servers", "kafka:9092") \
         .option("topic", "abnormal-vital-sign") \
-        .option("checkpointLocation", "/tmp/checkpoint_kafka") \
+        .option("checkpointLocation", "/tmp/checkpoint_kafka_window") \
         .start()
     
-    print("abnormal vitals written to kafka.....................................................")
+    print("Abnormal vitals (windowed) written to Kafka...")
     query.awaitTermination()
 
 except Exception as e:
